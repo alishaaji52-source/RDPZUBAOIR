@@ -1,4 +1,4 @@
-name: Create main
+name: Connection Test
 
 on:
   workflow_dispatch:
@@ -7,20 +7,24 @@ jobs:
   test:
     runs-on: windows-latest
 
+    env:
+      TAILSCALE_IP: ${{ secrets.TAILSCALE_IP }}
+
     steps:
       - name: Test Connection
         shell: powershell
         run: |
-          $testResult = Test-NetConnection $env:TAILSCALE_IP -Port 3389
-          if (-not $testResult.TcpTestSucceeded) {
-            Write-Error "TCP connection to RDP port 3389 failed"
+          if ([string]::IsNullOrWhiteSpace($env:TAILSCALE_IP)) {
+            Write-Error "TAILSCALE_IP secret is missing or empty."
             exit 1
           }
-          Write-Host "TCP connectivity successful!"
 
-      - name: Show RDP Information
-        shell: powershell
-        run: |
-          Write-Host "=== RDP ACCESS ==="
-          Write-Host "Address: $env:TAILSCALE_IP"
-          Write-Host "Username: RDP"
+          Write-Host "Testing connection to configured address..."
+          $testResult = Test-NetConnection -ComputerName $env:TAILSCALE_IP -Port 3389
+
+          if (-not $testResult.TcpTestSucceeded) {
+            Write-Error "TCP connection to port 3389 failed."
+            exit 1
+          }
+
+          Write-Host "TCP connectivity successful!"
